@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from harken import __version__
+from harken.analyze.compare import compare_hospitals
 from harken.analyze.loudness import band, loudness, rank_issues
 from harken.auth import (
     DUMMY_PASSWORD_HASH,
@@ -619,10 +620,15 @@ def create_app(
                 if days
                 else ""
             )
+            queries = project["queries"] if project else [q]
+            comparison = compare_hospitals(db, queries)
             ctx = {
+                "comparison": comparison
+                if len(comparison) > 1 or any(r["rating"] is not None for r in comparison)
+                else [],
                 "title": title or (project["name"] if project else q),
                 "project_id": p,
-                "queries": project["queries"] if project else [q],
+                "queries": queries,
                 "generated": datetime.now(timezone.utc).strftime("%d %b %Y"),
                 "date_range": date_range,
                 "total": summary["total"],

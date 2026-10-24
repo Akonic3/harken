@@ -141,6 +141,7 @@ class Pipeline:
                     )
                 incremental_since = since
                 source_mentions: list[Mention] = []
+                place_stats: dict | None = None
                 next_cursor: str | None = cursor
                 page_limit = pages if backfill or state.get("newest_at") else 1
                 for page_number in range(page_limit):
@@ -153,6 +154,7 @@ class Pipeline:
                         since=since,
                     )
                     source_mentions.extend(page.mentions)
+                    place_stats = page.place_stats or place_stats
                     result.pages_by_source[name] = page_number + 1
                     next_cursor = page.next_cursor
                     if not next_cursor:
@@ -161,6 +163,8 @@ class Pipeline:
                 unique_mentions = list(
                     {mention.id: mention for mention in source_mentions}.values()
                 )
+                if place_stats:
+                    self.store.record_place_stats(query, name, place_stats)
                 collected.extend(unique_mentions)
                 successful[name] = (unique_mentions, next_cursor, incremental_since)
                 result.by_source[name] = len(unique_mentions)

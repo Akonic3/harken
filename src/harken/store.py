@@ -54,6 +54,18 @@ CREATE INDEX IF NOT EXISTS idx_alert_pending
     ON alert_outbox(target_key, query, delivered_at, enqueued_at);
 """
 
+_PLACE_STATS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS place_stats (
+    query       TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    rating      REAL,
+    total       INTEGER,
+    per_score   TEXT,
+    PRIMARY KEY (query, source, captured_at)
+);
+"""
+
 _TRACKING_SCHEMA = """
 CREATE TABLE IF NOT EXISTS tracked_queries (
     query           TEXT PRIMARY KEY,
@@ -166,7 +178,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
 # Bumped when the on-disk schema or a one-time reconciliation step changes.
 # Stored in `PRAGMA user_version` so _ensure_schema() can skip the expensive
 # whole-table reconciliation on every connection once a DB is up to date.
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 
 
 class Store:
@@ -204,6 +216,7 @@ class Store:
                     + _SOURCE_METRICS_SCHEMA
                     + _PROJECT_SCHEMA
                     + _AUTH_SCHEMA
+                    + _PLACE_STATS_SCHEMA
                 )
                 self._ensure_engagement_column(cur)
                 cur.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
@@ -238,6 +251,7 @@ class Store:
                 + _SOURCE_METRICS_SCHEMA
                 + _PROJECT_SCHEMA
                 + _AUTH_SCHEMA
+                + _PLACE_STATS_SCHEMA
             )
             cur.execute(
                 """
@@ -622,6 +636,66 @@ class Store:
                     new += 1
         self._conn.commit()
         return new
+
+    def record_place_stats(
+        self, query: str, source: str, stats: dict, *, now: datetime | None = None
+    ) -> bool:
+        """Store a snapshot of place-level numbers; unchanged numbers add nothing."""
+        per_score = stats.get("per_score")
+        values = (
+            stats.get("rating"),
+            stats.get("total"),
+            json.dumps(per_score, sort_keys=True) if per_score else None,
+        )
+        with closing(self._conn.cursor()) as cur:
+            cur.execute(
+                """
+                SELECT rating, total, per_score FROM place_stats
+                WHERE query = ? AND source = ? ORDER BY captured_at DESC LIMIT 1
+                """,
+                (query, source),
+            )
+            latest = cur.fetchone()
+            if latest is not None and tuple(latest) == values:
+                return False
+            captured = (now or datetime.now(timezone.utc)).isoformat()
+            cur.execute(
+                """
+                INSERT OR REPLACE INTO place_stats
+                    (query, source, captured_at, rating, total, per_score)
+                VALUES (?,?,?,?,?,?)
+                """,
+                (query, source, captured, *values),
+            )
+        self._conn.commit()
+        return True
+
+    def place_snapshots(self, query: str, source: str = "googlereviews") -> list[dict]:
+        """Place-level snapshots, oldest first."""
+        with closing(self._conn.cursor()) as cur:
+            cur.execute(
+                """
+                SELECT captured_at, rating, total, per_score FROM place_stats
+                WHERE query = ? AND source = ? ORDER BY captured_at
+                """,
+                (query, source),
+            )
+            rows = cur.fetchall()
+        snapshots = []
+        for row in rows:
+            try:
+                raw = json.loads(row["per_score"]) if row["per_score"] else None
+            except ValueError:
+                raw = None
+            snapshots.append(
+                {
+                    "captured_at": datetime.fromisoformat(row["captured_at"]),
+                    "rating": row["rating"],
+                    "total": row["total"],
+                    "per_score": {int(k): v for k, v in raw.items()} if raw else None,
+                }
+            )
+        return snapshots
 
     def save_tracking(
         self, query: str, sources: list[str], *, project_id: int | None = None

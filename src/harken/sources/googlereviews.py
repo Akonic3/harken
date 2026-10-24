@@ -69,6 +69,7 @@ class GoogleReviewsSource(Source):
             requests.append(("lowest_rating", self.lowest_reviews))
 
         mentions: dict[str, Mention] = {}
+        place_stats: dict | None = None
         # The key travels in a header so it never appears in URLs or error text.
         with self._client(headers={"X-API-KEY": self.api_key}, timeout=120.0) as client:
             for sort, count in requests:
@@ -80,9 +81,11 @@ class GoogleReviewsSource(Source):
                 }
                 if since:
                     params["cutoff"] = int(since.timestamp())
-                for mention in _parse(self._call(client, params), query, place):
+                body = self._call(client, params)
+                place_stats = place_stats or _place_stats(body)
+                for mention in _parse(body, query, place):
                     mentions.setdefault(mention.id, mention)
-        return FetchPage(list(mentions.values()))
+        return FetchPage(list(mentions.values()), place_stats=place_stats)
 
     def _call(self, client, params: dict) -> dict:
         response = client.get(_API, params=params)
@@ -127,6 +130,49 @@ def _parse(body: dict, query: str, place_query: str) -> list[Mention]:
                 )
             )
     return mentions
+
+
+def _place_stats(body: dict) -> dict | None:
+    """Overall rating, review count and 1-5 star split of the place, if reported.
+
+    Field names follow the provider's documented columns; anything missing or
+    malformed is simply left out rather than guessed.
+    """
+    for place in _iter_places(body.get("data")):
+        rating = _number(place.get("rating"))
+        total = _number(place.get("reviews"))
+        per_score = _per_score(place)
+        if rating is None and total is None and per_score is None:
+            continue
+        return {
+            "rating": rating,
+            "total": int(total) if total is not None else None,
+            "per_score": per_score,
+        }
+    return None
+
+
+def _number(value) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number >= 0 else None
+
+
+def _per_score(place: dict) -> dict[int, int] | None:
+    raw = place.get("reviews_per_score")
+    counts: dict[int, int] = {}
+    for star in range(1, 6):
+        value = None
+        if isinstance(raw, dict):
+            value = raw.get(str(star), raw.get(star))
+        if value is None:
+            value = place.get(f"reviews_per_score_{star}")
+        number = _number(value)
+        if number is not None:
+            counts[star] = int(number)
+    return counts if len(counts) == 5 else None
 
 
 def _iter_places(data):

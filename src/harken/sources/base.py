@@ -20,6 +20,9 @@ class FetchPage:
 
     mentions: list[Mention]
     next_cursor: str | None = None
+    #: optional place-level numbers for review sources:
+    #: {"rating": float|None, "total": int|None, "per_score": {1..5: int}|None}
+    place_stats: dict | None = None
 
 
 class Source:

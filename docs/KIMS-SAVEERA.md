@@ -19,3 +19,18 @@ Notes
   English/Telugu/Hinglish vocabulary in `src/harken/analyze/hospital_themes.py` — tune it on real reviews.
 - The Outscraper request format was written from its documented API and tested with mocked responses only.
   The first live scan is the real test; if it errors, send the message shown on the dashboard.
+
+## Comparing with other Anantapur hospitals
+
+1. In Render → harken → Environment, extend `HARKEN_GOOGLE_PLACES` with one entry per hospital, separated by `;`:
+   `KIMS Saveera=KIMS - Saveera Hospital, 1-1348 Srinagar Colony Extension, Rudrampeta, Anantapur 515004;Rival Name=Rival Hospital Name, Anantapur`
+   (use each hospital's exact Google Maps name and area; check the place on Google Maps first).
+2. Dashboard → create a project such as `Anantapur hospitals` → add each hospital as a keyword using the exact name on the left of the `=`.
+3. Tick **Google Reviews** and scan each keyword once. Each first scan fetches ~400 reviews (about $1 after the free 500).
+4. Open the project's **client report**: "How the hospitals compare" shows Google rating, total reviews, 1–3★ share,
+   growth and top complaint per hospital. The table's *own report* links open one hospital's issues alone.
+5. Growth needs two scans at least a day apart (scan again a few days later); it shows how fast a hospital gains reviews,
+   so a sudden jump can reveal a review drive.
+
+Rating, total, 1–3★ share and growth cover every review on Google, so they compare fairly. "Top complaint" comes from
+the collected sample (newest plus lowest-rated) and is not a count of unhappy patients.
