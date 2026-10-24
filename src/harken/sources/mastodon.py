@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source, strip_html
 
 
@@ -64,6 +64,11 @@ class MastodonSource(Source):
                     url=st.get("url"),
                     created_at=created,
                     score=st.get("favourites_count"),
+                    engagement=clean_engagement(
+                        likes=st.get("favourites_count"),
+                        shares=st.get("reblogs_count"),
+                        comments=st.get("replies_count"),
+                    ),
                 )
             )
         next_cursor = None

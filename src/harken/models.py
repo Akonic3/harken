@@ -13,6 +13,21 @@ from enum import Enum
 
 from pydantic import BaseModel, field_validator
 
+ENGAGEMENT_KEYS = ("likes", "shares", "comments", "views", "helpful")
+
+
+def clean_engagement(**counts) -> dict[str, int] | None:
+    """Keep only known, positive whole-number engagement counts (else None)."""
+    cleaned: dict[str, int] = {}
+    for key in ENGAGEMENT_KEYS:
+        try:
+            value = int(counts.get(key))
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            cleaned[key] = value
+    return cleaned or None
+
 
 class Sentiment(str, Enum):
     """Coarse sentiment label. Kept deliberately small — useful, not precise."""
@@ -38,6 +53,9 @@ class Mention(BaseModel):
     url: str | None = None
     created_at: datetime
     score: int | None = None  # upvotes / points / favourites, source-dependent
+    #: how far the item travelled, where the source reports it:
+    #: likes, shares, comments, views, helpful (e.g. Google "helpful" votes)
+    engagement: dict[str, int] | None = None
 
     # Populated by analyzers (None until analysed).
     sentiment: Sentiment | None = None
@@ -58,6 +76,11 @@ class Mention(BaseModel):
         if value.tzinfo is None:
             return value.replace(tzinfo=timezone.utc)
         return value
+
+    @field_validator("engagement")
+    @classmethod
+    def _clean_engagement(cls, value: dict | None) -> dict[str, int] | None:
+        return clean_engagement(**value) if value else None
 
     def model_post_init(self, __context) -> None:  # noqa: D401
         if not self.id:

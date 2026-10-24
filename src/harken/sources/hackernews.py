@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source, strip_html
 
 _API = "https://hn.algolia.com/api/v1/search_by_date"
@@ -79,6 +79,9 @@ class HackerNewsSource(Source):
                     else hit.get("url"),
                     created_at=created,
                     score=hit.get("points"),
+                    engagement=clean_engagement(
+                        likes=hit.get("points"), comments=hit.get("num_comments")
+                    ),
                 )
             )
         has_more = data.get("page", 0) + 1 < data.get("nbPages", 1)

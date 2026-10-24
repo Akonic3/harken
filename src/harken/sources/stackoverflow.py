@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source, strip_html
 
 _API = "https://api.stackexchange.com/2.3/search/advanced"
@@ -81,6 +81,11 @@ class StackOverflowSource(Source):
                     ),
                     created_at=created,
                     score=question.get("score"),
+                    engagement=clean_engagement(
+                        likes=question.get("score"),
+                        comments=question.get("answer_count"),
+                        views=question.get("view_count"),
+                    ),
                 )
             )
         timestamps = [

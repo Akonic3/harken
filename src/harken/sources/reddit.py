@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source
 
 _API = "https://oauth.reddit.com/search"
@@ -76,6 +76,9 @@ class RedditSource(Source):
                     url=f"https://www.reddit.com{permalink}" if permalink else d.get("url"),
                     created_at=created,
                     score=d.get("score"),
+                    engagement=clean_engagement(
+                        likes=d.get("score"), comments=d.get("num_comments")
+                    ),
                 )
             )
         return FetchPage(mentions, data.get("data", {}).get("after"))

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source
 
 _API = "https://api.x.com/2/tweets/search/recent"
@@ -82,6 +82,13 @@ class XSource(Source):
                     ),
                     created_at=_parse_datetime(post.get("created_at")),
                     score=metrics.get("like_count"),
+                    engagement=clean_engagement(
+                        likes=metrics.get("like_count"),
+                        shares=(metrics.get("retweet_count") or 0)
+                        + (metrics.get("quote_count") or 0),
+                        comments=metrics.get("reply_count"),
+                        views=metrics.get("impression_count"),
+                    ),
                 )
             )
         return FetchPage(mentions, (data.get("meta") or {}).get("next_token"))

@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source, strip_html
 
 _API = "https://api.app.outscraper.com/maps/reviews-v3"
@@ -123,6 +123,7 @@ def _parse(body: dict, query: str, place_query: str) -> list[Mention]:
                     url=link or None,
                     created_at=_when(review),
                     score=rating,
+                    engagement=clean_engagement(helpful=review.get("review_likes")),
                 )
             )
     return mentions

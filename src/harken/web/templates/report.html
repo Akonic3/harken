@@ -48,6 +48,12 @@
   <h2>Agency summary &amp; recommended actions</h2>
   <div class="notes" contenteditable="true" spellcheck="true">Click to write the key takeaways and recommended actions for the hospital team.</div>
 
+  <h2>Biggest issues, ranked by loudness</h2>
+  {% if issues %}<table><tr><th>Issue</th><th>Negative mentions</th><th>Loudness</th><th>Loudest example</th></tr>
+  {% for i in issues %}<tr><td><b>{{ i.theme }}</b></td><td>{{ i.count }}</td><td>{{ "%.1f"|format(i.loudness) }}</td><td>{{ (i.top.title or i.top.text)[:140] }}{% if i.top.url %} · <a href="{{ i.top.url }}">original</a>{% endif %} <span class="note-small">({{ i.top.band }})</span></td></tr>{% endfor %}</table>
+  <p class="note-small">Loudness weighs each negative mention by the likes, shares, comments, views and helpful votes it received, so one widely seen post outranks several unseen ones.{% if sample_biased %} Google reviews were collected as the newest plus the lowest-rated, so these counts show which complaints are loudest, not what share of patients are unhappy.{% endif %}</p>
+  {% else %}<p class="meta">No negative mentions to rank in this period.</p>{% endif %}
+
   <h2>Recurring themes</h2>
   {% if themes %}<table><tr><th>Theme</th><th>Mentions</th></tr>
   {% for t in themes %}<tr><td>{{ t.label }}</td><td>{{ t.count }}</td></tr>{% endfor %}</table>
@@ -58,16 +64,16 @@
   {% for name, n in by_source %}<tr><td>{{ name }}</td><td>{{ n }}</td></tr>{% endfor %}</table>
   {% else %}<p class="meta">No data collected yet.</p>{% endif %}
 
-  <h2>Needs human review — negative mentions</h2>
-  {% for m in negatives %}<div class="quote neg">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
+  <h2>Needs human review — negative mentions, loudest first</h2>
+  {% for m in negatives %}<div class="quote neg">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }} · loudness {{ "%.1f"|format(m.loudness) }} ({{ m.band }}){% if m.engagement %} · {% for k, v in m.engagement.items() %}{{ v }} {{ k }}{{ ", " if not loop.last }}{% endfor %}{% endif %}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
   {% else %}<p class="meta">No negative mentions in this period.</p>{% endfor %}
 
   <h2>What people praise — positive mentions</h2>
-  {% for m in positives %}<div class="quote pos">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
+  {% for m in positives %}<div class="quote pos">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }} · loudness {{ "%.1f"|format(m.loudness) }} ({{ m.band }}){% if m.engagement %} · {% for k, v in m.engagement.items() %}{{ v }} {{ k }}{{ ", " if not loop.last }}{% endfor %}{% endif %}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
   {% else %}<p class="meta">No positive mentions in this period.</p>{% endfor %}
 
   <h2>Method &amp; limits</h2>
-  <p class="note-small">Mentions come from publicly accessible sources configured for this project; coverage is not exhaustive. Sentiment is automated and is an indicator, not proof that any allegation is true — every flagged item above needs human verification before action. Patient privacy: only public content is collected.</p>
+  <p class="note-small">Mentions come from publicly accessible sources configured for this project; coverage is not exhaustive. Sentiment is automated and is an indicator, not proof that any allegation is true — engagement figures are only what each source reports (some report none), so loudness is a relative guide, not total reach. Every flagged item above needs human verification before action. Patient privacy: only public content is collected.</p>
 </main>
 <script src="/static/report.js"></script>
 </body>

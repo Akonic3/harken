@@ -166,7 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
 # Bumped when the on-disk schema or a one-time reconciliation step changes.
 # Stored in `PRAGMA user_version` so _ensure_schema() can skip the expensive
 # whole-table reconciliation on every connection once a DB is up to date.
-_SCHEMA_VERSION = 2
+_SCHEMA_VERSION = 3
 
 
 class Store:
@@ -205,6 +205,7 @@ class Store:
                     + _PROJECT_SCHEMA
                     + _AUTH_SCHEMA
                 )
+                self._ensure_engagement_column(cur)
                 cur.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
                 return
 
@@ -255,7 +256,15 @@ class Store:
                     """,
                     (DEFAULT_PROJECT_ID,),
                 )
+            self._ensure_engagement_column(cur)
             cur.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+
+    @staticmethod
+    def _ensure_engagement_column(cur: sqlite3.Cursor) -> None:
+        """Schema v3: per-mention engagement counts stored as a small JSON object."""
+        cur.execute("PRAGMA table_info(mentions)")
+        if "engagement" not in {row["name"] for row in cur.fetchall()}:
+            cur.execute("ALTER TABLE mentions ADD COLUMN engagement TEXT")
 
     def close(self) -> None:
         self._conn.close()
@@ -572,8 +581,8 @@ class Store:
             upsert_sql = f"""
                 INSERT INTO mentions
                     (id, source, query, author, title, text, url, created_at,
-                     score, sentiment, sentiment_score, theme, fetched_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     score, sentiment, sentiment_score, theme, fetched_at, engagement)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(id, query) DO UPDATE SET
                     source=excluded.source,
                     author=excluded.author,
@@ -584,6 +593,7 @@ class Store:
                     sentiment=excluded.sentiment,
                     sentiment_score=excluded.sentiment_score,
                     {theme_update}score=excluded.score,
+                    engagement=COALESCE(excluded.engagement, mentions.engagement),
                     fetched_at=excluded.fetched_at
             """
             for m in mentions:
@@ -605,6 +615,7 @@ class Store:
                         m.sentiment_score,
                         m.theme,
                         now,
+                        json.dumps(m.engagement, sort_keys=True) if m.engagement else None,
                     ),
                 )
                 if not existed:
@@ -1434,7 +1445,18 @@ def _row_to_mention(r: sqlite3.Row) -> Mention:
         sentiment=Sentiment(r["sentiment"]) if r["sentiment"] else None,
         sentiment_score=r["sentiment_score"],
         theme=r["theme"],
+        engagement=_load_engagement(r["engagement"]),
     )
+
+
+def _load_engagement(raw: str | None) -> dict[str, int] | None:
+    if not raw:
+        return None
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def _user_view(row: sqlite3.Row) -> dict:

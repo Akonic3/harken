@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from starlette.requests import Request
 
 from harken import __version__
+from harken.analyze.loudness import band, loudness, rank_issues
 from harken.auth import (
     DUMMY_PASSWORD_HASH,
     MUTATING_ROLES,
@@ -597,6 +598,21 @@ def create_app(
             bs = summary["by_sentiment"]
             all_rows = db.mentions(limit=None, **scope)
             views = [_view(m) for m in all_rows]
+            issues = rank_issues(all_rows)
+            for issue in issues:
+                issue["top"] = _view(issue["top"])
+            negatives = sorted(
+                (v for v in views if v["sentiment"] == "negative"),
+                key=lambda v: v["created_at"],
+                reverse=True,
+            )
+            negatives.sort(key=lambda v: v["loudness"], reverse=True)  # stable: loudest first
+            positives = sorted(
+                (v for v in views if v["sentiment"] == "positive"),
+                key=lambda v: v["created_at"],
+                reverse=True,
+            )
+            positives.sort(key=lambda v: v["loudness"], reverse=True)
             days = sorted(summary["by_day"])
             date_range = (
                 _date_range_label(date.fromisoformat(days[0]), date.fromisoformat(days[-1]))
@@ -615,9 +631,14 @@ def create_app(
                 "neg": bs.get("negative", 0),
                 "net": db.net_sentiment(**scope),
                 "themes": db.themes(limit=10, **scope),
-                "by_source": list(summary["by_source"].items()),
-                "negatives": [v for v in views if v["sentiment"] == "negative"][:10],
-                "positives": [v for v in views if v["sentiment"] == "positive"][:5],
+                "by_source": [
+                    (SOURCE_META.get(name, {}).get("label", name), n)
+                    for name, n in summary["by_source"].items()
+                ],
+                "issues": issues[:8],
+                "negatives": negatives[:10],
+                "positives": positives[:5],
+                "sample_biased": "googlereviews" in summary["by_source"],
             }
             return templates.TemplateResponse(request, "report.html", ctx)
         finally:
@@ -890,6 +911,7 @@ def _valid_basic_auth(header: str | None, username: str, password: str) -> bool:
 
 def _view(m: Mention) -> dict:
     meta = SOURCE_META.get(m.source, {"label": m.source, "glyph": "•", "color": "#8b93a1"})
+    weight = loudness(m)
     return {
         "id": m.id,
         "query": m.query,
@@ -907,6 +929,9 @@ def _view(m: Mention) -> dict:
         "sentiment": m.sentiment.value if m.sentiment else "neutral",
         "sentiment_score": m.sentiment_score,
         "theme": m.theme,
+        "engagement": m.engagement or {},
+        "loudness": weight,
+        "band": band(weight),
     }
 
 

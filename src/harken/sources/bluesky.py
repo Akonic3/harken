@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from harken.models import Mention
+from harken.models import Mention, clean_engagement
 from harken.sources.base import FetchPage, Source
 
 # The legacy public.api host is blocked by Bluesky's CDN in some regions. The
@@ -62,6 +62,11 @@ class BlueskySource(Source):
                     else None,
                     created_at=created,
                     score=post.get("likeCount"),
+                    engagement=clean_engagement(
+                        likes=post.get("likeCount"),
+                        shares=(post.get("repostCount") or 0) + (post.get("quoteCount") or 0),
+                        comments=post.get("replyCount"),
+                    ),
                 )
             )
         return FetchPage(mentions, data.get("cursor"))
