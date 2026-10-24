@@ -178,6 +178,9 @@ class Config:
     google_max_reviews: int = field(
         default_factory=lambda: int(os.getenv("HARKEN_GOOGLE_MAX_REVIEWS") or 100)
     )
+    google_lowest_reviews: int = field(
+        default_factory=lambda: int(os.getenv("HARKEN_GOOGLE_LOWEST_REVIEWS") or 300)
+    )
     theme_mode: str = field(
         default_factory=lambda: (os.getenv("HARKEN_THEME_MODE") or "auto").strip().lower()
     )
@@ -278,5 +281,6 @@ class Config:
                 "api_key": self.outscraper_api_key,
                 "places": self.google_places,
                 "max_reviews": self.google_max_reviews,
+                "lowest_reviews": self.google_lowest_reviews,
             }
         return {}

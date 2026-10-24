@@ -34,12 +34,17 @@ class GoogleReviewsSource(Source):
         api_key: str | None = None,
         places: dict[str, str] | None = None,
         max_reviews: int = 100,
+        lowest_reviews: int = 300,
         **options,
     ):
         super().__init__(**options)
         self.api_key = api_key
         self.places = {k.casefold(): v for k, v in (places or {}).items()}
         self.max_reviews = max_reviews
+        # Highly rated places (a 4.9 average is common when patients are asked to
+        # review at discharge) hide their real signal in the low-star tail, so the
+        # first scan also pulls the lowest-rated reviews.
+        self.lowest_reviews = lowest_reviews
 
     def fetch(self, query: str, limit: int = 50) -> list[Mention]:
         return self.fetch_page(query, limit=limit).mentions
@@ -59,33 +64,41 @@ class GoogleReviewsSource(Source):
             # Not a mapped keyword: do nothing (and spend nothing).
             return FetchPage([])
 
-        params: dict[str, str | int] = {
-            "query": place,
-            "reviewsLimit": self.max_reviews,
-            "sort": "newest",
-            "async": "false",
-        }
-        if since:
-            params["cutoff"] = int(since.timestamp())
+        requests: list[tuple[str, int]] = [("newest", self.max_reviews)]
+        if since is None and self.lowest_reviews > 0:
+            requests.append(("lowest_rating", self.lowest_reviews))
 
+        mentions: dict[str, Mention] = {}
         # The key travels in a header so it never appears in URLs or error text.
         with self._client(headers={"X-API-KEY": self.api_key}, timeout=120.0) as client:
-            response = client.get(_API, params=params)
-            response.raise_for_status()
-            body = response.json()
-            for _ in range(_POLL_ATTEMPTS):
-                location = body.get("results_location")
-                if body.get("status") != "Pending" or not location:
-                    break
-                time.sleep(_POLL_SECONDS)
-                poll = client.get(location)
-                poll.raise_for_status()
-                body = poll.json()
-            else:
-                if body.get("status") == "Pending":
-                    raise RuntimeError("Google Reviews request still pending; try again later")
+            for sort, count in requests:
+                params: dict[str, str | int] = {
+                    "query": place,
+                    "reviewsLimit": count,
+                    "sort": sort,
+                    "async": "false",
+                }
+                if since:
+                    params["cutoff"] = int(since.timestamp())
+                for mention in _parse(self._call(client, params), query, place):
+                    mentions.setdefault(mention.id, mention)
+        return FetchPage(list(mentions.values()))
 
-        return FetchPage(_parse(body, query, place))
+    def _call(self, client, params: dict) -> dict:
+        response = client.get(_API, params=params)
+        response.raise_for_status()
+        body = response.json()
+        for _ in range(_POLL_ATTEMPTS):
+            location = body.get("results_location")
+            if body.get("status") != "Pending" or not location:
+                return body
+            time.sleep(_POLL_SECONDS)
+            poll = client.get(location)
+            poll.raise_for_status()
+            body = poll.json()
+        if body.get("status") == "Pending":
+            raise RuntimeError("Google Reviews request still pending; try again later")
+        return body
 
 
 def _parse(body: dict, query: str, place_query: str) -> list[Mention]:

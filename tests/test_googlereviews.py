@@ -58,6 +58,24 @@ def test_fetches_mapped_keyword_and_parses_reviews():
 
 
 @respx.mock
+def test_first_scan_also_pulls_lowest_rated_and_dedupes():
+    route = respx.get(API).mock(return_value=httpx.Response(200, json=PAYLOAD))
+    src = GoogleReviewsSource(api_key="k", places={"a": "b"}, lowest_reviews=50)
+    page = src.fetch_page("a")
+    sorts = [c.request.url.params["sort"] for c in route.calls]
+    assert sorts == ["newest", "lowest_rating"]
+    assert len(page.mentions) == 2  # same reviews returned twice are kept once
+
+
+@respx.mock
+def test_incremental_scan_pulls_only_newest():
+    route = respx.get(API).mock(return_value=httpx.Response(200, json=PAYLOAD))
+    src = GoogleReviewsSource(api_key="k", places={"a": "b"})
+    src.fetch_page("a", since=datetime(2026, 9, 1, tzinfo=timezone.utc))
+    assert [c.request.url.params["sort"] for c in route.calls] == ["newest"]
+
+
+@respx.mock
 def test_unmapped_keyword_makes_no_request():
     route = respx.get(API).mock(return_value=httpx.Response(200, json=PAYLOAD))
     src = GoogleReviewsSource(api_key="k", places={"KIMS Saveera": "x"})

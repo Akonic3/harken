@@ -19,7 +19,7 @@ services:
       - key: HARKEN_OUTSCRAPER_API_KEY
         sync: false          # paste your Outscraper key in the Render screen
       - key: HARKEN_GOOGLE_PLACES
-        value: KIMS Saveera=KIMS Saveera Hospital Anantapur
+        value: KIMS Saveera=KIMS - Saveera Hospital, 1-1348 Srinagar Colony Extension, Rudrampeta, Anantapur 515004
       - key: HARKEN_AUTH_USERNAME
         sync: false          # you type these in the Render screen
       - key: HARKEN_AUTH_PASSWORD
