@@ -1,0 +1,18 @@
+# Render Blueprint — one-click deploy from this repo.
+services:
+  - type: web
+    name: harken
+    runtime: docker
+    plan: starter            # a persistent disk needs a paid plan; free tier loses data on restart
+    healthCheckPath: /health
+    disk:
+      name: harken-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: HARKEN_DB
+        value: /data/harken.db
+      - key: HARKEN_AUTH_USERNAME
+        sync: false          # you type these in the Render screen
+      - key: HARKEN_AUTH_PASSWORD
+        sync: false

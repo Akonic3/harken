@@ -19,3 +19,7 @@
    `harken watch "KIMS Saveera" --every 3600`, sharing the same volume — or run scans from the dashboard.
 
 Never deploy without auth set. `HARKEN_AUTH_*` enables HTTP Basic auth (Railway terminates HTTPS for you).
+
+## Alternative: Render
+New → Blueprint → pick this repo and branch `kims-saveera`. `render.yaml` sets up the service and a 1 GB disk at `/data`.
+Enter `HARKEN_AUTH_USERNAME` and `HARKEN_AUTH_PASSWORD` when asked. Never deploy without them.
