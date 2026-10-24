@@ -61,6 +61,7 @@
     {% else %}<span class="project-empty">No keywords yet. Scan a new one below or add an existing keyword.</span>{% endfor %}
   </div>
   <div class="project-actions">
+    {% if project %}<a class="scan-button" href="/report?p={{ project.id }}" target="_blank" rel="noopener">client report</a>{% endif %}
     {% if can_mutate and unassigned_queries %}
     <form id="project-add-form" class="project-inline-form" data-project-id="{{ project.id }}">
       <label class="sr-only" for="project-query">Existing tracked keyword</label>

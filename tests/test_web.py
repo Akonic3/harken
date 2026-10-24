@@ -670,3 +670,16 @@ def test_login_rejects_cross_origin_post(tmp_path):
     )
     assert response.status_code == 403
     assert "harken_session" not in client.cookies
+
+
+def test_report_renders_for_project_and_validates_scope(tmp_path):
+    db_path = seeded_db(tmp_path)
+    client = TestClient(create_app(db_path))
+    r = client.get("/report?p=1&title=KIMS%20Saveera")
+    assert r.status_code == 200
+    assert "KIMS Saveera" in r.text and "terrible bug" in r.text and "great stuff" in r.text
+    assert client.get("/report?q=acme").status_code == 200
+    assert client.get("/report").status_code == 422
+    assert client.get("/report?p=1&q=acme").status_code == 422
+    assert client.get("/report?p=999").status_code == 404
+    assert "<script>" not in client.get("/report?p=1&title=%3Cscript%3E").text

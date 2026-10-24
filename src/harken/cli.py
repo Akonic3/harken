@@ -272,7 +272,9 @@ def report(
 @app.command()
 def serve(
     db: str = typer.Option(None, help="Database path (default: harken.db, or $HARKEN_DB)."),
-    port: int = typer.Option(8042, min=1, max=65535, help="Port."),
+    port: int = typer.Option(
+        8042, min=1, max=65535, envvar="PORT", help="Port (also read from $PORT on PaaS hosts)."
+    ),
     host: str = typer.Option("127.0.0.1", help="Bind host."),
 ):
     """Launch the local web dashboard."""

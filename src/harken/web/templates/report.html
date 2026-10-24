@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} — Reputation Report</title>
+<style>
+  :root { color-scheme: light; }
+  body { font: 15px/1.55 system-ui, sans-serif; color: #1c2230; background: #f4f5f7; margin: 0; }
+  .page { max-width: 860px; margin: 24px auto; background: #fff; padding: 40px 48px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e3e6ec; }
+  .meta { color: #6b7385; font-size: 13px; }
+  .toolbar { max-width: 860px; margin: 16px auto 0; display: flex; gap: 12px; align-items: center; }
+  .toolbar button, .toolbar a { font: inherit; padding: 6px 14px; border: 1px solid #c5cad6; background: #fff; border-radius: 6px; cursor: pointer; text-decoration: none; color: inherit; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  .kpi { border: 1px solid #e3e6ec; border-radius: 8px; padding: 12px; }
+  .kpi b { display: block; font-size: 24px; }
+  .kpi span { font-size: 12px; color: #6b7385; text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+  .quote { margin: 10px 0; padding: 8px 12px; border-left: 3px solid #c5cad6; background: #fafbfc; }
+  .quote.neg { border-color: #d9534f; } .quote.pos { border-color: #3c9d5d; }
+  .quote small { display: block; color: #6b7385; margin-top: 2px; }
+  .notes { min-height: 90px; border: 1px dashed #b7bdcb; border-radius: 6px; padding: 10px; }
+  .note-small { font-size: 12px; color: #6b7385; }
+  @media print { body { background: #fff; } .page { box-shadow: none; margin: 0; padding: 0; } .toolbar { display: none; } .notes { border: none; padding: 0; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" data-print>Print / save as PDF</button>
+  <a href="/{% if project_id %}?p={{ project_id }}{% endif %}">← back to dashboard</a>
+  <span class="note-small">The summary box below is editable — type your analysis, then print.</span>
+</div>
+<main class="page">
+  <h1>{{ title }}</h1>
+  <div class="meta">Reputation intelligence report · {{ generated }}{% if date_range %} · mentions from {{ date_range }}{% endif %}<br>Keywords: {{ queries | join(", ") if queries else "—" }}</div>
+
+  <div class="kpis">
+    <div class="kpi"><b>{{ total }}</b><span>Mentions</span></div>
+    <div class="kpi"><b>{{ pos }}</b><span>Positive</span></div>
+    <div class="kpi"><b>{{ neu }}</b><span>Neutral</span></div>
+    <div class="kpi"><b>{{ neg }}</b><span>Negative</span></div>
+  </div>
+  <p class="meta">Net sentiment: <b>{{ "%+.0f"|format(net * 100) }}</b> (positive minus negative, as % of mentions).</p>
+
+  <h2>Agency summary &amp; recommended actions</h2>
+  <div class="notes" contenteditable="true" spellcheck="true">Click to write the key takeaways and recommended actions for the hospital team.</div>
+
+  <h2>Recurring themes</h2>
+  {% if themes %}<table><tr><th>Theme</th><th>Mentions</th></tr>
+  {% for t in themes %}<tr><td>{{ t.label }}</td><td>{{ t.count }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="meta">No themes detected yet.</p>{% endif %}
+
+  <h2>Sources</h2>
+  {% if by_source %}<table><tr><th>Source</th><th>Mentions</th></tr>
+  {% for name, n in by_source %}<tr><td>{{ name }}</td><td>{{ n }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="meta">No data collected yet.</p>{% endif %}
+
+  <h2>Needs human review — negative mentions</h2>
+  {% for m in negatives %}<div class="quote neg">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
+  {% else %}<p class="meta">No negative mentions in this period.</p>{% endfor %}
+
+  <h2>What people praise — positive mentions</h2>
+  {% for m in positives %}<div class="quote pos">{{ m.title or m.text }}<small>{{ m.source_label }} · {{ m.created_at[:10] }}{% if m.theme %} · {{ m.theme }}{% endif %}{% if m.url %} · <a href="{{ m.url }}">original</a>{% endif %}</small></div>
+  {% else %}<p class="meta">No positive mentions in this period.</p>{% endfor %}
+
+  <h2>Method &amp; limits</h2>
+  <p class="note-small">Mentions come from publicly accessible sources configured for this project; coverage is not exhaustive. Sentiment is automated and is an indicator, not proof that any allegation is true — every flagged item above needs human verification before action. Patient privacy: only public content is collected.</p>
+</main>
+<script src="/static/report.js"></script>
+</body>
+</html>

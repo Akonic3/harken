@@ -574,6 +574,54 @@ def create_app(
         finally:
             db.close()
 
+    @app.get("/report", response_class=HTMLResponse)
+    def report(
+        request: Request,
+        p: int | None = Query(default=None, ge=1, le=_MAX_ID),
+        q: str | None = None,
+        title: str | None = Query(default=None, max_length=200),
+    ):
+        """Printable client report for one project (or one keyword)."""
+        if p is not None and q:
+            raise HTTPException(status_code=422, detail="Choose a query or a project, not both")
+        db = store()
+        try:
+            project = db.project(p) if p is not None else None
+            if p is not None and project is None:
+                raise HTTPException(status_code=404, detail="Project not found")
+            if p is None and not q:
+                raise HTTPException(status_code=422, detail="Provide a project (p) or keyword (q)")
+            scope = {"project_id": p} if p is not None else {"query": q}
+            summary = db.summary(**scope)
+            bs = summary["by_sentiment"]
+            all_rows = db.mentions(limit=None, **scope)
+            views = [_view(m) for m in all_rows]
+            days = sorted(summary["by_day"])
+            date_range = (
+                _date_range_label(date.fromisoformat(days[0]), date.fromisoformat(days[-1]))
+                if days
+                else ""
+            )
+            ctx = {
+                "title": title or (project["name"] if project else q),
+                "project_id": p,
+                "queries": project["queries"] if project else [q],
+                "generated": datetime.now(timezone.utc).strftime("%d %b %Y"),
+                "date_range": date_range,
+                "total": summary["total"],
+                "pos": bs.get("positive", 0),
+                "neu": bs.get("neutral", 0),
+                "neg": bs.get("negative", 0),
+                "net": db.net_sentiment(**scope),
+                "themes": db.themes(limit=10, **scope),
+                "by_source": list(summary["by_source"].items()),
+                "negatives": [v for v in views if v["sentiment"] == "negative"][:10],
+                "positives": [v for v in views if v["sentiment"] == "positive"][:5],
+            }
+            return templates.TemplateResponse(request, "report.html", ctx)
+        finally:
+            db.close()
+
     @app.get("/api/mentions")
     def api_mentions(
         q: str | None = None,
