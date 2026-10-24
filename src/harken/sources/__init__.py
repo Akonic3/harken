@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from harken.sources.base import Source
 from harken.sources.bluesky import BlueskySource
+from harken.sources.googlereviews import GoogleReviewsSource
 from harken.sources.hackernews import HackerNewsSource
 from harken.sources.mastodon import MastodonSource
 from harken.sources.reddit import RedditSource
@@ -26,6 +27,7 @@ REGISTRY: dict[str, type[Source]] = {
     StackOverflowSource.name: StackOverflowSource,
     XSource.name: XSource,
     YouTubeSource.name: YouTubeSource,
+    GoogleReviewsSource.name: GoogleReviewsSource,
 }
 
 # Sources verified to work with zero configuration (no key, no account).

@@ -12,6 +12,14 @@ services:
     envVars:
       - key: HARKEN_DB
         value: /data/harken.db
+      - key: HARKEN_THEME_MODE
+        value: hospital
+      - key: HARKEN_SOURCES
+        value: googlereviews,rss,youtube
+      - key: HARKEN_OUTSCRAPER_API_KEY
+        sync: false          # paste your Outscraper key in the Render screen
+      - key: HARKEN_GOOGLE_PLACES
+        value: KIMS Saveera=KIMS Saveera Hospital Anantapur
       - key: HARKEN_AUTH_USERNAME
         sync: false          # you type these in the Render screen
       - key: HARKEN_AUTH_PASSWORD

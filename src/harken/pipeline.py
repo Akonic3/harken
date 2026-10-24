@@ -25,6 +25,7 @@ from harken.alerts import (
     send_threshold_email,
     webhook_target_key,
 )
+from harken.analyze.hospital_themes import apply_topics
 from harken.analyze.insights import Theme, ThemeExtractor
 from harken.analyze.sentiment import LexiconSentiment
 from harken.config import Config
@@ -175,6 +176,7 @@ class Pipeline:
         # Analyze sentiment locally by default. The opt-in LLM path is batched,
         # strictly validated, and falls back to the lexicon without losing data.
         result.sentiment_error = self._analyze_sentiment(collected)
+        _apply_star_ratings(collected)
 
         existing_ids = self.store.existing_ids(query, [mention.id for mention in collected])
         new_negative = list(
@@ -202,8 +204,12 @@ class Pipeline:
 
         # cluster themes over the full stored set for this query, then persist labels
         stored = self.store.mentions(query=query, limit=None)
-        themes = self.themes.extract(stored)
-        result.analysis_error = self._maybe_llm_label(themes, stored)
+        if self.config.theme_mode == "hospital":
+            apply_topics(stored)  # fixed hospital taxonomy instead of free clustering
+            themes = []
+        else:
+            themes = self.themes.extract(stored)
+            result.analysis_error = self._maybe_llm_label(themes, stored)
         self.store.upsert(stored)  # write theme labels back
         result.themes = themes
         self._deliver_alerts(query, new_negative, result, evaluate_metrics=not backfill)
@@ -586,3 +592,18 @@ def _parse_datetime(value: str | None) -> datetime | None:
 
 def _combine_errors(current: str | None, new: str) -> str:
     return f"{current}; {new}" if current else new
+
+
+def _apply_star_ratings(mentions: list[Mention]) -> None:
+    """For star-rated sources, a clear rating beats text analysis.
+
+    4-5 stars is positive and 1-2 stars is negative. A 3-star review keeps the
+    text-based label, since it is usually mixed.
+    """
+    for mention in mentions:
+        if mention.source != "googlereviews" or mention.score is None:
+            continue
+        if mention.score >= 4:
+            mention.sentiment, mention.sentiment_score = Sentiment.POSITIVE, 0.6
+        elif mention.score <= 2:
+            mention.sentiment, mention.sentiment_score = Sentiment.NEGATIVE, -0.6

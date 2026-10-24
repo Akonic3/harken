@@ -226,6 +226,7 @@ Only ✅ items are **built today**. 🚧 = on the [roadmap](#roadmap).
 | Stack Overflow | ✅ | Public Stack Exchange question search; Harken preserves API backoff and anonymous quota state. |
 | X / Twitter | needs bearer token | X API v2 recent-post search; requires an X developer plan that includes recent search. |
 | YouTube | needs API key | YouTube Data API v3 video search, ordered by publication time; provider quota applies. |
+| Google Reviews | needs Outscraper key | Full Google Maps review history for a mapped place; star ratings drive sentiment. Set `HARKEN_OUTSCRAPER_API_KEY` and `HARKEN_GOOGLE_PLACES`. |
 | Reddit | needs OAuth | Set a Reddit app client or access token; anonymous JSON search is no longer reliable. |
 | Mastodon | usually needs token | Status full-text search depends on the instance and normally needs a user token. |
 | RSS / Atom | needs feeds | Point it at any feed — a blog, a news site, or a Google Alerts RSS. |

@@ -18,6 +18,16 @@ def _env_list(name: str) -> list[str]:
     return [x.strip() for x in raw.split(",") if x.strip()]
 
 
+def _env_places(name: str) -> dict[str, str]:
+    """Parse ``keyword=place search;keyword2=place search`` into a dict."""
+    places: dict[str, str] = {}
+    for entry in os.getenv(name, "").split(";"):
+        keyword, sep, place = entry.partition("=")
+        if sep and keyword.strip() and place.strip():
+            places[keyword.strip()] = place.strip()
+    return places
+
+
 def _clean_env(name: str) -> str | None:
     """Return the env var's stripped value, or None if it is unset or blank.
 
@@ -159,6 +169,18 @@ class Config:
     youtube_api_key: str | None = field(
         default_factory=lambda: os.getenv("HARKEN_YOUTUBE_API_KEY") or None
     )
+    outscraper_api_key: str | None = field(
+        default_factory=lambda: os.getenv("HARKEN_OUTSCRAPER_API_KEY") or None
+    )
+    google_places: dict[str, str] = field(
+        default_factory=lambda: _env_places("HARKEN_GOOGLE_PLACES")
+    )
+    google_max_reviews: int = field(
+        default_factory=lambda: int(os.getenv("HARKEN_GOOGLE_MAX_REVIEWS") or 100)
+    )
+    theme_mode: str = field(
+        default_factory=lambda: (os.getenv("HARKEN_THEME_MODE") or "auto").strip().lower()
+    )
     rss_feeds: list[str] = field(default_factory=lambda: _env_list("HARKEN_RSS_FEEDS"))
     webhook_url: str | None = field(default_factory=lambda: os.getenv("HARKEN_WEBHOOK_URL") or None)
     email_to: list[str] = field(default_factory=lambda: _env_list("HARKEN_EMAIL_TO"))
@@ -251,4 +273,10 @@ class Config:
             return {"bearer_token": self.x_bearer_token}
         if name == "youtube":
             return {"api_key": self.youtube_api_key}
+        if name == "googlereviews":
+            return {
+                "api_key": self.outscraper_api_key,
+                "places": self.google_places,
+                "max_reviews": self.google_max_reviews,
+            }
         return {}

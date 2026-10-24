@@ -53,6 +53,7 @@ SOURCE_META = {
     "stackoverflow": {"label": "Stack Overflow", "glyph": "<>", "color": "#f48024"},
     "x": {"label": "X / Twitter", "glyph": "X", "color": "#d8dce5"},
     "youtube": {"label": "YouTube", "glyph": "▶", "color": "#ff3d3d"},
+    "googlereviews": {"label": "Google Reviews", "glyph": "★", "color": "#fbbc04"},
 }
 
 _MONTH_NAMES = (
@@ -825,6 +826,8 @@ def _source_configured(name: str, config: Config) -> bool:
         return bool(config.x_bearer_token)
     if name == "youtube":
         return bool(config.youtube_api_key)
+    if name == "googlereviews":
+        return bool(config.outscraper_api_key and config.google_places)
     return True
 
 
